@@ -2,7 +2,12 @@
     "name": "game-server",
     "description": "A custom multiplayer game server",
     "version": "0.0.1",
+    "scripts": {
+        "start": "node app",
+        "dev": "nodemon app"
+    },
     "dependencies": {
-        "console-title": "^1.1.0"
+        "console-title": "^1.1.0",
+        "uuid": "^8.3.1"
     }
 }
