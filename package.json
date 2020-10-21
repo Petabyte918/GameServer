@@ -1,0 +1,8 @@
+{
+    "name": "GameServer",
+    "description": "A custom multiplayer game server",
+    "version": "0.0.1",
+    "dependencies": {
+        "console-title": "^1.1.0"
+    }
+}
