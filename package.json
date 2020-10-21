@@ -1,5 +1,5 @@
 {
-    "name": "GameServer",
+    "name": "game-server",
     "description": "A custom multiplayer game server",
     "version": "0.0.1",
     "dependencies": {
