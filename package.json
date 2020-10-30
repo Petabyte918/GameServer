@@ -7,7 +7,6 @@
         "dev": "nodemon app"
     },
     "dependencies": {
-        "console-title": "^1.1.0",
         "uuid": "^8.3.1"
     }
 }

@@ -1,12 +1,12 @@
 const { v4: uuidv4 } = require('uuid');
 const net = require('net');
-const setTitle = require('console-title');
+const settings = require("./settings.json");
 
 const server = net.createServer();
 const Users = new Map();
 
-server.listen(8080, "127.0.0.1", () => {
-    console.log(`tcp server listening on port ${8080}`);
+server.listen(settings.port, settings.ip, () => {
+    console.log(`tcp server listening on ${settings.ip}:${settings.port}`);
 });
 
 function generateID(unavailable) {
@@ -144,7 +144,6 @@ function OverrideTransform(parentID, instanceID) {
 server.on("connection", (socket) => {
     var id = generateID(Users.keys());
     console.log(`Client joined: ${socket.remoteAddress}:${socket.remotePort} - ${id}`);
-    setTitle(`RPGServer - Connections: ${Users.size}`);
 
     Users.set(id, {
         COM: socket,
@@ -162,57 +161,60 @@ server.on("connection", (socket) => {
         while (Sender.stringBuffer.includes("@end")) {
             var split = Sender.stringBuffer.split("@end");
             Sender.stringBuffer = split[1] ? split[1] + "@end" : "";
+            try {
+                var packet = JSON.parse(split[0]);
 
-            var packet = JSON.parse(split[0]);
+                switch (packet.Event) {
+                    case "uInstantiate":
+                        Instantiate(id, packet.Data.resource, packet.Data.position, packet.Data.rotation, "player");
+                        break;
 
-            switch (packet.Event) {
-                case "uInstantiate":
-                    Instantiate(id, packet.Data.resource, packet.Data.position, packet.Data.rotation, "player");
-                    break;
+                    case "uDestroy":
+                        Destroy(id, packet.Data.instanceID);
+                        break;
 
-                case "uDestroy":
-                    Destroy(id, packet.Data.instanceID);
-                    break;
+                    case "uTransform":
+                        if (ObjectExist(id, packet.Data.instanceID)) {
+                            var mObj = Sender.Objects.get(packet.Data.instanceID);
 
-                case "uTransform":
-                    if (ObjectExist(id, packet.Data.instanceID)) {
-                        var mObj = Sender.Objects.get(packet.Data.instanceID);
-
-                        if (PlanarDistance(mObj.position, packet.Data.position) < 1) {
-                            Transform(id, packet.Data.instanceID, packet.Data.position, packet.Data.rotation);
-                        } else {
-                            OverrideTransform(id, packet.Data.instanceID);
-                        }
-                    }
-                    break;
-
-                case "uPing":
-                    send(id, { Event: "pong" });
-                    break;
-
-                case "uRPC":
-                    broadcast({ Event: "rpc", Data: packet.Data }, id);
-                    break;
-
-                case "uAttack":
-                    if (UserExist(packet.Data.parent, packet.Data.instanceID)) {
-                        var targetObject = Users.get(packet.Data.parent).Objects.get(packet.Data.instanceID);
-                        var myObject = Sender.Objects.get(packet.Data.mInstanceID);
-
-                        var v0 = targetObject.position;
-                        var v1 = myObject.position;
-
-                        if (Distance(v0, v1) <= 2) {
-                            targetObject.life -= 25;
-
-                            if (targetObject.life > 0) {
-                                broadcast({ Event: "rpc", Data: { parent: packet.Data.parent, instanceID: packet.Data.instanceID, method: "SetAnimTrigger", mode: 2, args: ["AAEAAAD/////AQAAAAAAAAAGAQAAAAZHZXRIaXQL"] } }, id);
+                            if (PlanarDistance(mObj.position, packet.Data.position) < 2.5) {
+                                Transform(id, packet.Data.instanceID, packet.Data.position, packet.Data.rotation);
                             } else {
-                                Destroy(packet.Data.parent, packet.Data.instanceID);
+                                OverrideTransform(id, packet.Data.instanceID);
                             }
                         }
-                    }
-                    break;
+                        break;
+
+                    case "uPing":
+                        send(id, { Event: "pong" });
+                        break;
+
+                    case "uRPC":
+                        broadcast({ Event: "rpc", Data: packet.Data }, id);
+                        break;
+
+                    case "uAttack":
+                        if (UserExist(packet.Data.parent, packet.Data.instanceID)) {
+                            var targetObject = Users.get(packet.Data.parent).Objects.get(packet.Data.instanceID);
+                            var myObject = Sender.Objects.get(packet.Data.mInstanceID);
+
+                            var v0 = targetObject.position;
+                            var v1 = myObject.position;
+
+                            if (Distance(v0, v1) <= 2) {
+                                targetObject.life -= 25;
+
+                                if (targetObject.life > 0) {
+                                    broadcast({ Event: "rpc", Data: { parent: packet.Data.parent, instanceID: packet.Data.instanceID, method: "SetAnimTrigger", mode: 2, args: ["AAEAAAD/////AQAAAAAAAAAGAQAAAAZHZXRIaXQL"] } }, id);
+                                } else {
+                                    Destroy(packet.Data.parent, packet.Data.instanceID);
+                                }
+                            }
+                        }
+                        break;
+                }
+            } catch (e) {
+                console.log(e);
             }
         }
     });
@@ -224,7 +226,6 @@ server.on("connection", (socket) => {
         clearObjects(id);
         Users.delete(id);
         console.log(`Client left: ${socket.remoteAddress}:${socket.remotePort} - ${id}`);
-        setTitle(`RPGServer - Connections: ${Users.size}`);
     };
 
     socket.on("close", onEnd);
